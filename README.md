@@ -21,7 +21,27 @@
 
 ## 🚀 快速开始
 
-### 1. 安装依赖
+### ⚠️ 重要：数据集需要自己准备
+
+**本项目不会自动下载数据集**，你需要：
+1. 准备PCB图像文件（放在 `data/pcb_defects/images/`）
+2. 创建标签文件 `data/pcb_defects/labels.json`
+
+详细说明请查看 [RUN_GUIDE.md](RUN_GUIDE.md)
+
+### 1. 快速检查（推荐先运行）
+
+```bash
+python quick_start.py
+```
+
+这会检查：
+- ✅ 环境配置
+- ✅ 数据集配置
+- ✅ 模型文件
+- ✅ 给出下一步建议
+
+### 2. 安装依赖
 
 ```bash
 pip install -r requirements.txt
