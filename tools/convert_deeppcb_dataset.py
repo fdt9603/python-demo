@@ -117,8 +117,13 @@ def parse_deeppcb_annotation(annotation_path: str, image_width: int = 640, image
             continue
         
         try:
-            # 格式：x1,y1,x2,y2,type
-            parts = [p.strip() for p in line.split(',')]
+            # 格式：x1 y1 x2 y2 type 或 x1,y1,x2,y2,type（支持两种格式）
+            # 先尝试按逗号分割，如果没有逗号则按空格分割
+            if ',' in line:
+                parts = [p.strip() for p in line.split(',')]
+            else:
+                parts = line.split()  # 按空格分割
+            
             if len(parts) < 5:
                 continue
             
@@ -181,26 +186,22 @@ def find_pcbdata_dir(deeppcb_dir: str) -> Optional[str]:
     if not deeppcb_path.exists():
         return None
     
-    # 尝试1: 直接是PCBData目录
-    if any(deeppcb_path.glob("*_test.jpg")):
-        return str(deeppcb_path)
-    
-    # 尝试2: PCBData子目录
+    # 优先检查: PCBData子目录（递归查找 *_test.jpg 文件）
     pcbdata_path = deeppcb_path / "PCBData"
     if pcbdata_path.exists() and pcbdata_path.is_dir():
-        if any(pcbdata_path.glob("*_test.jpg")):
+        if any(pcbdata_path.rglob("*_test.jpg")):
             return str(pcbdata_path)
     
-    # 尝试3: 递归查找所有子目录（DeepPCB数据集可能分组存储）
+    # 尝试1: 直接是PCBData目录（递归查找 *_test.jpg 文件）
+    if any(deeppcb_path.rglob("*_test.jpg")):
+        return str(deeppcb_path)
+    
+    # 尝试2: 递归查找所有子目录（DeepPCB数据集可能分组存储）
     for subdir in deeppcb_path.iterdir():
         if subdir.is_dir():
-            # 检查直接子目录
-            if any(subdir.glob("*_test.jpg")):
+            # 递归检查子目录（支持任意深度的嵌套）
+            if any(subdir.rglob("*_test.jpg")):
                 return str(subdir)
-            # 检查子目录的子目录（如group00041/00041/）
-            for subsubdir in subdir.iterdir():
-                if subsubdir.is_dir() and any(subsubdir.glob("*_test.jpg")):
-                    return str(subsubdir)
     
     return None
 
@@ -268,14 +269,28 @@ def convert_deeppcb_dataset(
     error_count = 0
     
     for idx, (test_img_rel_path, test_img_full_path) in enumerate(test_images_info):
-        # 获取标注文件路径（与图像在同一目录，文件名去掉_test后缀）
-        # 例如：00041000_test.jpg -> 00041000.txt
+        # 获取标注文件路径（DeepPCB数据集结构中，标注文件在 *_not 子目录中）
+        # 例如：group12000/12000/12000001_test.jpg -> group12000/12000_not/12000001.txt
         base_name = Path(test_img_rel_path).stem.replace("_test", "")
-        annotation_path = test_img_full_path.parent / f"{base_name}.txt"
+        
+        # 首先尝试在 *_not 目录中查找（DeepPCB标准结构）
+        parent_dir_name = test_img_full_path.parent.name
+        not_dir = test_img_full_path.parent.parent / f"{parent_dir_name}_not"
+        annotation_path = not_dir / f"{base_name}.txt"
+        
+        # 如果 *_not 目录不存在，尝试在同一目录查找（兼容其他结构）
+        if not annotation_path.exists():
+            annotation_path = test_img_full_path.parent / f"{base_name}.txt"
         
         # 检查图像文件是否存在
         if not test_img_full_path.exists():
             print(f"⚠️  跳过: 图像文件不存在 {test_img_full_path}")
+            skipped_count += 1
+            continue
+        
+        # 检查标注文件是否存在
+        if not annotation_path.exists():
+            print(f"⚠️  跳过: 标注文件不存在 {annotation_path}")
             skipped_count += 1
             continue
         
@@ -285,7 +300,7 @@ def convert_deeppcb_dataset(
             img_width, img_height = img.size
             img = img.convert('RGB')  # 确保RGB格式
         except Exception as e:
-            print(f"⚠️  读取图像失败 {test_img_path}: {e}")
+            print(f"⚠️  读取图像失败 {test_img_full_path}: {e}")
             error_count += 1
             continue
         
