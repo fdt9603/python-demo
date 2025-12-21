@@ -22,7 +22,7 @@ pip install -r requirements.txt
 
 ```bash
 # 转换DeepPCB数据集（如果你已下载）
-python convert_deeppcb_dataset.py --deeppcb_dir /path/to/DeepPCB-master
+python tools/convert_deeppcb_dataset.py --deeppcb_dir /path/to/DeepPCB-master
 ```
 
 详细说明：[DEEPPCB_CONVERSION_GUIDE.md](DEEPPCB_CONVERSION_GUIDE.md)
@@ -58,13 +58,13 @@ mkdir -p data/pcb_defects/images
 
 **方式B：使用示例生成器**
 ```bash
-python -c "from data_loader import create_sample_labels_json; create_sample_labels_json('data/pcb_defects/labels.json', 'data/pcb_defects/images', num_samples=10)"
+python -c "from src.data.data_loader import create_sample_labels_json; create_sample_labels_json('data/pcb_defects/labels.json', 'data/pcb_defects/images', num_samples=10)"
 ```
 
 ### Step 2: 训练模型（Day 1-2）
 
 ```bash
-python pcb_train.py \
+python src/train/pcb_train.py \
     --data_dir ./data/pcb_defects \
     --output_dir ./checkpoints/pcb_checkpoints \
     --max_steps 2000 \
@@ -83,7 +83,7 @@ chmod +x storage_monitor.sh
 ### Step 3: 合并模型（Day 3）
 
 ```bash
-python merge_model.py \
+python src/train/merge_model.py \
     --base_model Qwen/Qwen3-VL-32B-Instruct \
     --lora_checkpoint ./checkpoints/pcb_checkpoints/final \
     --output_dir ./models/qwen3-vl-pcb
@@ -92,7 +92,7 @@ python merge_model.py \
 ### Step 4: 量化模型（Day 4）
 
 ```bash
-python quantize_model.py \
+python src/train/quantize_model.py \
     --model_path ./models/qwen3-vl-pcb \
     --output_dir ./models/qwen3-vl-pcb-awq \
     --num_calib_samples 200
@@ -104,13 +104,13 @@ python quantize_model.py \
 
 ```bash
 # 单张图像测试
-python pcb_agent.py \
+python src/inference/pcb_agent.py \
     --image_path ./data/test_image.jpg \
     --inspection_type full \
     --model_path ./models/qwen3-vl-pcb-awq
 
 # 完整验证
-python validation_pcb.py \
+python src/inference/validation_pcb.py \
     --model_path ./models/qwen3-vl-pcb-awq \
     --test_data_dir ./data/pcb_test \
     --test_images ./data/test_images/*.jpg
@@ -122,7 +122,7 @@ python validation_pcb.py \
 
 ```bash
 # 启动API服务
-python mllm_api.py \
+python src/inference/mllm_api.py \
     --host 0.0.0.0 \
     --port 8000 \
     --model_path ./models/qwen3-vl-pcb-awq
@@ -168,7 +168,7 @@ chmod +x deploy_pcb.sh
 ### Q4: 漏检率高怎么办？
 
 **A**:
-1. 增加数据增强倍数（修改 `data_loader.py` 中的增强次数）
+1. 增加数据增强倍数（修改 `src/data/data_loader.py` 中的增强次数）
 2. 降低置信度阈值（`config.yaml` 中的 `confidence_threshold`）
 3. 增加训练步数 `max_steps`
 

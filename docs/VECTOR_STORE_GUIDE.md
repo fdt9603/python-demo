@@ -247,7 +247,7 @@ similar_cases = store.search_similar_defects(
 
 ## 📝 完整示例
 
-参考 `example_usage.py` 查看完整的使用示例，包括：
+参考 `examples/example_usage.py` 查看完整的使用示例，包括：
 
 - 基础检测
 - 向量数据库集成

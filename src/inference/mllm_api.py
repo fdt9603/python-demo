@@ -11,7 +11,10 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from PIL import Image
 import io
-from pcb_agent import SimplePCBAgent
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from src.inference.pcb_agent import SimplePCBAgent
 
 app = FastAPI(
     title="PCB缺陷检测API",

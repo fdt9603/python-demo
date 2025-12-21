@@ -35,7 +35,7 @@
 ### 1. 快速检查（推荐先运行）
 
 ```bash
-python quick_start.py
+python tools/quick_start.py
 ```
 
 这会检查：
@@ -58,7 +58,7 @@ pip install -r requirements.txt
 
 ```bash
 # 转换DeepPCB数据集为项目格式
-python convert_deeppcb_dataset.py --deeppcb_dir /path/to/DeepPCB-master
+python tools/convert_deeppcb_dataset.py --deeppcb_dir /path/to/DeepPCB-master
 
 # 转换完成后，数据集将保存在 ./data/pcb_defects/ 目录
 ```
@@ -98,13 +98,13 @@ data/
 #### 方式C：生成示例数据（用于测试）
 
 ```bash
-python data_loader.py  # 查看示例
+python -c "from src.data.data_loader import load_pcb_dataset; help(load_pcb_dataset)"  # 查看示例
 ```
 
 ### 3. 训练模型（Day 1-2）
 
 ```bash
-python pcb_train.py \
+python src/train/pcb_train.py \
     --data_dir ./data/pcb_defects \
     --output_dir ./checkpoints/pcb_checkpoints \
     --max_steps 2000 \
@@ -116,7 +116,7 @@ python pcb_train.py \
 ### 4. 合并模型（Day 3）
 
 ```bash
-python merge_model.py \
+python src/train/merge_model.py \
     --base_model Qwen/Qwen3-VL-32B-Instruct \
     --lora_checkpoint ./checkpoints/pcb_checkpoints/final \
     --output_dir ./models/qwen3-vl-pcb
@@ -125,7 +125,7 @@ python merge_model.py \
 ### 5. 量化模型（Day 4）
 
 ```bash
-python quantize_model.py \
+python src/train/quantize_model.py \
     --model_path ./models/qwen3-vl-pcb \
     --output_dir ./models/qwen3-vl-pcb-awq \
     --num_calib_samples 200
@@ -134,7 +134,7 @@ python quantize_model.py \
 ### 6. 验证模型（Day 7）
 
 ```bash
-python validation_pcb.py \
+python src/inference/validation_pcb.py \
     --model_path ./models/qwen3-vl-pcb-awq \
     --test_data_dir ./data/pcb_test \
     --test_images ./data/test_images/*.jpg
@@ -152,7 +152,7 @@ chmod +x deploy_pcb.sh
 #### 方式B：启动API服务
 
 ```bash
-python mllm_api.py \
+python src/inference/mllm_api.py \
     --host 0.0.0.0 \
     --port 8000 \
     --model_path ./models/qwen3-vl-pcb-awq
@@ -163,7 +163,7 @@ API文档：http://localhost:8000/docs
 #### 方式C：命令行使用
 
 ```bash
-python pcb_agent.py \
+python src/inference/pcb_agent.py \
     --image_path ./data/test_image.jpg \
     --inspection_type full \
     --model_path ./models/qwen3-vl-pcb-awq
@@ -173,28 +173,39 @@ python pcb_agent.py \
 
 ```
 .
-├── convert_deeppcb_dataset.py  # DeepPCB数据集格式转换工具
-├── data_loader.py              # Day 0: 数据集加载和增强
-├── pcb_train.py                # Day 1-2: 模型微调
-├── merge_model.py              # Day 3: 模型合并
-├── quantize_model.py           # Day 4: AWQ量化
-├── pcb_agent.py                # Day 5-6: LangChain智能体
-├── vector_store.py             # 向量数据库模块（历史案例存储）
-├── pcb_graph.py                # LangGraph工作流模块
-├── validation_pcb.py           # Day 7: 工业级验证
-├── mllm_api.py                 # Day 8: FastAPI服务
+├── tools/                       # 工具脚本目录
+│   ├── convert_deeppcb_dataset.py  # DeepPCB数据集格式转换工具
+│   ├── check_autodl_compatibility.py  # Autodl兼容性检查工具
+│   └── quick_start.py          # 快速检查工具
+├── src/                         # 核心源代码目录
+│   ├── data/                   # 数据处理模块
+│   │   ├── data_loader.py      # Day 0: 数据集加载和增强
+│   │   └── dataset.py          # 数据集接口（向后兼容）
+│   ├── train/                  # 训练相关模块
+│   │   ├── pcb_train.py        # Day 1-2: 模型微调
+│   │   ├── merge_model.py      # Day 3: 模型合并
+│   │   └── quantize_model.py   # Day 4: AWQ量化
+│   └── inference/              # 推理和部署模块
+│       ├── pcb_agent.py        # Day 5-6: LangChain智能体
+│       ├── vector_store.py     # 向量数据库模块（历史案例存储）
+│       ├── pcb_graph.py        # LangGraph工作流模块
+│       ├── validation_pcb.py   # Day 7: 工业级验证
+│       └── mllm_api.py         # Day 8: FastAPI服务
+├── examples/                    # 示例代码目录
+│   ├── example_usage.py        # 使用示例
+│   ├── main.py                 # 示例入口
+│   └── test.py                 # 测试脚本
 ├── deploy_pcb.sh               # Day 8: 部署脚本
-├── example_usage.py            # 使用示例
 ├── config.yaml                 # 配置文件
 ├── requirements.txt            # 依赖列表
 ├── README.md                   # 本文档
-├── docs/                        # 文档目录
-│   ├── RUN_GUIDE.md            # 运行指南
-│   ├── QUICKSTART.md           # 快速开始
-│   ├── DEEPPCB_CONVERSION_GUIDE.md  # DeepPCB数据集转换指南
-│   ├── VECTOR_STORE_GUIDE.md   # 向量数据库和LangGraph使用指南
-│   ├── AUTODL_A800_COMPATIBILITY.md  # A800兼容性分析
-│   └── AUTODL_QUICK_START.md   # A800快速启动指南
+└── docs/                        # 文档目录
+    ├── RUN_GUIDE.md            # 运行指南
+    ├── QUICKSTART.md           # 快速开始
+    ├── DEEPPCB_CONVERSION_GUIDE.md  # DeepPCB数据集转换指南
+    ├── VECTOR_STORE_GUIDE.md   # 向量数据库和LangGraph使用指南
+    ├── AUTODL_A800_COMPATIBILITY.md  # A800兼容性分析
+    └── AUTODL_QUICK_START.md   # A800快速启动指南
 ```
 
 ## 🎖️ 性能指标
@@ -226,7 +237,7 @@ python pcb_agent.py \
 | Day 1-2 | 模型微调 | LoRA检查点 |
 | Day 3 | 模型合并 | 合并后的模型 |
 | Day 4 | AWQ量化 | 量化模型（25GB） |
-| Day 5-6 | 智能体开发 | pcb_agent.py |
+| Day 5-6 | 智能体开发 | src/inference/pcb_agent.py |
 | Day 7 | 工业验证 | 验证报告 |
 | Day 8 | 部署交付 | API服务 |
 

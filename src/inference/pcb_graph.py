@@ -18,8 +18,11 @@ except ImportError:
     LANGGRAPH_AVAILABLE = False
     print("警告: LangGraph未安装，将使用简化版本")
 
-from pcb_agent import SimplePCBAgent, PCBDefectInput
-from vector_store import PCBVectorStore
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from src.inference.pcb_agent import SimplePCBAgent, PCBDefectInput
+from src.inference.vector_store import PCBVectorStore
 
 
 class PCBInspectionState(TypedDict):
@@ -54,7 +57,7 @@ class PCBLangGraphAgent:
         self.vector_store = vector_store
         
         if self.vector_store is None:
-            from vector_store import create_vector_store
+            from src.inference.vector_store import create_vector_store
             self.vector_store = create_vector_store(collection_name=collection_name)
         
         # 构建工作流图

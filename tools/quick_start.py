@@ -180,7 +180,7 @@ def show_next_steps():
     
     print("\n1️⃣  如果你有DeepPCB数据集需要转换:")
     print("   python convert_deeppcb_dataset.py --deeppcb_dir /path/to/DeepPCB-master")
-    print("   详细说明: 查看 docs/DEEPPCB_CONVERSION_GUIDE.md")
+    print("   详细说明: 查看 ../docs/DEEPPCB_CONVERSION_GUIDE.md")
     
     print("\n2️⃣  如果你有数据集但还没训练模型:")
     print("   python pcb_train.py --data_dir ./data/pcb_defects")
@@ -195,11 +195,11 @@ def show_next_steps():
     print("   python -c \"from data_loader import load_pcb_dataset; d=load_pcb_dataset('data/pcb_defects'); print(f'数据集大小: {len(d)}')\"")
     
     print("\n6️⃣  查看详细文档:")
-    print("   - README.md - 项目总览")
-    print("   - docs/QUICKSTART.md - 快速开始")
-    print("   - docs/RUN_GUIDE.md - 运行指南")
-    print("   - docs/DEEPPCB_CONVERSION_GUIDE.md - DeepPCB数据集转换指南")
-    print("   - docs/VECTOR_STORE_GUIDE.md - 向量数据库指南")
+    print("   - ../README.md - 项目总览")
+    print("   - ../docs/QUICKSTART.md - 快速开始")
+    print("   - ../docs/RUN_GUIDE.md - 运行指南")
+    print("   - ../docs/DEEPPCB_CONVERSION_GUIDE.md - DeepPCB数据集转换指南")
+    print("   - ../docs/VECTOR_STORE_GUIDE.md - 向量数据库指南")
     
     print("\n" + "=" * 60)
 

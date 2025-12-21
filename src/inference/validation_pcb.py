@@ -8,8 +8,11 @@ import torch
 import os
 from typing import List, Dict, Any
 from sklearn.metrics import recall_score, precision_score, f1_score
-from pcb_agent import SimplePCBAgent
-from data_loader import load_pcb_dataset
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from src.inference.pcb_agent import SimplePCBAgent
+from src.data.data_loader import load_pcb_dataset
 
 
 def test_miss_rate(agent: SimplePCBAgent, test_dataset, threshold: float = 0.99):
