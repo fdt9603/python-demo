@@ -458,7 +458,7 @@ img.save(new_img_path, 'JPEG', quality=95)
 
 ## 📚 相关文档
 
-- [README.md](README.md) - 项目总览
+- [README.md](../README.md) - 项目总览
 - [RUN_GUIDE.md](RUN_GUIDE.md) - 运行指南
 - [DeepPCB GitHub](https://github.com/tangsanli5201/DeepPCB) - 原始数据集
 

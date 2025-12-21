@@ -20,7 +20,7 @@
 - **Python**: 3.8+
 - **CUDA**: 11.8+
 
-> 💡 **Autodl A800用户**: 项目完全兼容A800 80GB，无需修改代码。查看 [AUTODL_A800_COMPATIBILITY.md](AUTODL_A800_COMPATIBILITY.md) 了解详情。
+> 💡 **Autodl A800用户**: 项目完全兼容A800 80GB，无需修改代码。查看 [AUTODL_A800_COMPATIBILITY.md](docs/AUTODL_A800_COMPATIBILITY.md) 了解详情。
 
 ## 🚀 快速开始
 
@@ -30,7 +30,7 @@
 1. 准备PCB图像文件（放在 `data/pcb_defects/images/`）
 2. 创建标签文件 `data/pcb_defects/labels.json`
 
-详细说明请查看 [RUN_GUIDE.md](RUN_GUIDE.md)
+详细说明请查看 [RUN_GUIDE.md](docs/RUN_GUIDE.md)
 
 ### 1. 快速检查（推荐先运行）
 
@@ -63,7 +63,7 @@ python convert_deeppcb_dataset.py --deeppcb_dir /path/to/DeepPCB-master
 # 转换完成后，数据集将保存在 ./data/pcb_defects/ 目录
 ```
 
-详细转换说明请查看 [DEEPPCB_CONVERSION_GUIDE.md](DEEPPCB_CONVERSION_GUIDE.md)
+详细转换说明请查看 [DEEPPCB_CONVERSION_GUIDE.md](docs/DEEPPCB_CONVERSION_GUIDE.md)
 
 #### 方式B：使用自定义数据集
 
@@ -188,10 +188,13 @@ python pcb_agent.py \
 ├── config.yaml                 # 配置文件
 ├── requirements.txt            # 依赖列表
 ├── README.md                   # 本文档
-├── RUN_GUIDE.md                # 运行指南
-├── QUICKSTART.md               # 快速开始
-├── DEEPPCB_CONVERSION_GUIDE.md # DeepPCB数据集转换指南
-└── VECTOR_STORE_GUIDE.md       # 向量数据库和LangGraph使用指南
+├── docs/                        # 文档目录
+│   ├── RUN_GUIDE.md            # 运行指南
+│   ├── QUICKSTART.md           # 快速开始
+│   ├── DEEPPCB_CONVERSION_GUIDE.md  # DeepPCB数据集转换指南
+│   ├── VECTOR_STORE_GUIDE.md   # 向量数据库和LangGraph使用指南
+│   ├── AUTODL_A800_COMPATIBILITY.md  # A800兼容性分析
+│   └── AUTODL_QUICK_START.md   # A800快速启动指南
 ```
 
 ## 🎖️ 性能指标
@@ -285,7 +288,7 @@ python pcb_agent.py \
 - **向量数据库**: 存储历史检测结果，支持相似缺陷案例检索
 - **LangGraph**: 构建多步骤智能体工作流（检测→检索→报告→评估）
 
-详细使用指南请参考 [VECTOR_STORE_GUIDE.md](VECTOR_STORE_GUIDE.md)
+详细使用指南请参考 [VECTOR_STORE_GUIDE.md](docs/VECTOR_STORE_GUIDE.md)
 
 ### 快速开始
 

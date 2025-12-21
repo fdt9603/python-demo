@@ -31,7 +31,7 @@ python convert_deeppcb_dataset.py --deeppcb_dir /path/to/DeepPCB-master
 
 如果你有其他格式的PCB缺陷数据集：
 - 下载数据集
-- 参考 `DEEPPCB_CONVERSION_GUIDE.md` 中的格式说明
+- 参考 [DEEPPCB_CONVERSION_GUIDE.md](DEEPPCB_CONVERSION_GUIDE.md) 中的格式说明
 - 转换为项目要求的格式
 
 ---
