@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Model files
+models/
+checkpoints/
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.onnx
+
+# Data
+data/
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.json
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Environment variables
+.env
+.env.local
+
+# Cache
+.cache/
+*.cache
+
+# HuggingFace
+.huggingface/
+
+# Outputs
+outputs/
+results/
+reports/
+
+# Quantization
+*.awq
+quantized_models/
+
+# DeepPCB Dataset (users should download it themselves)
+DeepPCB-master/
+

@@ -1,0 +1,108 @@
+# PCB缺陷检测项目配置文件
+
+# 模型配置
+model:
+  base_model: "Qwen/Qwen3-VL-32B-Instruct"
+  model_path: "./models/qwen3-vl-pcb-awq"
+  use_4bit: true
+  device_map: "auto"
+
+# LoRA配置
+lora:
+  r: 16  # 缺陷模式简单，16足够
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+
+# 训练配置
+training:
+  max_steps: 2000
+  batch_size: 1
+  gradient_accumulation_steps: 16
+  learning_rate: 5e-4
+  save_steps: 500
+  warmup_steps: 100
+  weight_decay: 0.01
+  output_dir: "./checkpoints/pcb_checkpoints"
+  early_stopping_patience: 3
+
+# 数据配置
+data:
+  image_size: [448, 448]  # Qwen3-VL最优尺寸
+  augment_factor: 10  # 缺陷样本增强倍数
+  defect_types:
+    - "short"    # 短路
+    - "open"     # 断路
+    - "missing"  # 缺件
+    - "normal"   # 正常
+
+# 量化配置
+quantization:
+  method: "AWQ"
+  w_bit: 4
+  q_group_size: 128
+  version: "GEMM"
+  calibration_samples: 200
+
+# 推理配置
+inference:
+  max_new_tokens: 512
+  temperature: 0.1  # 客观任务，低随机性
+  top_p: 0.95
+  do_sample: false  # 贪心解码，最稳定
+  confidence_threshold: 0.7
+
+# 验证配置
+validation:
+  miss_rate_threshold: 0.01  # 漏检率 < 1%
+  max_avg_inference_time: 1.0  # 平均推理时间 < 1秒
+  max_p99_inference_time: 1.5  # P99推理时间 < 1.5秒
+  max_memory_gb: 30.0  # 最大显存 < 30GB
+  json_format_success_rate: 1.0  # JSON格式正确率 100%
+
+# API配置
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  max_file_size_mb: 50
+
+# 部署配置
+deployment:
+  input_dir: "./data/pcb_input"
+  output_dir: "./data/pcb_output"
+  log_dir: "./logs"
+
+# JSON格式约束
+json_schema:
+  type: "array"
+  items:
+    type: "object"
+    properties:
+      defect:
+        type: "string"
+        enum: ["short", "open", "missing", "normal"]
+      bbox:
+        type: "array"
+        items:
+          type: "integer"
+        minItems: 4
+        maxItems: 4
+      confidence:
+        type: "number"
+        minimum: 0
+        maximum: 1
+      repair:
+        type: "string"
+    required:
+      - "defect"
+      - "bbox"
+      - "repair"
+
