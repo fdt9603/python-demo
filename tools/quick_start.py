@@ -179,20 +179,20 @@ def show_next_steps():
     print("=" * 60)
     
     print("\n1️⃣  如果你有DeepPCB数据集需要转换:")
-    print("   python convert_deeppcb_dataset.py --deeppcb_dir /path/to/DeepPCB-master")
+    print("   python tools/convert_deeppcb_dataset.py --deeppcb_dir /path/to/DeepPCB-master")
     print("   详细说明: 查看 ../docs/DEEPPCB_CONVERSION_GUIDE.md")
     
     print("\n2️⃣  如果你有数据集但还没训练模型:")
     print("   python pcb_train.py --data_dir ./data/pcb_defects")
     
     print("\n3️⃣  如果你已有训练好的模型:")
-    print("   python pcb_agent.py --image_path your_image.jpg --model_path ./models/qwen3-vl-pcb-awq")
+    print("   python src/inference/pcb_agent.py --image_path your_image.jpg --model_path ./models/qwen3-vl-pcb-awq")
     
     print("\n4️⃣  如果你想启动API服务:")
-    print("   python mllm_api.py --port 8000")
+    print("   python src/inference/mllm_api.py --port 8000")
     
     print("\n5️⃣  如果你想测试数据加载:")
-    print("   python -c \"from data_loader import load_pcb_dataset; d=load_pcb_dataset('data/pcb_defects'); print(f'数据集大小: {len(d)}')\"")
+    print("   python -c \"from src.data.data_loader import load_pcb_dataset; d=load_pcb_dataset('data/pcb_defects'); print(f'数据集大小: {len(d)}')\"")
     
     print("\n6️⃣  查看详细文档:")
     print("   - ../README.md - 项目总览")

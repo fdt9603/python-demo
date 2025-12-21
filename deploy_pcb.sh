@@ -30,7 +30,7 @@ echo "✅ 模型路径: $MODEL_PATH"
 
 # 启动API服务（后台）
 echo "启动API服务..."
-python mllm_api.py \
+python src/inference/mllm_api.py \
     --host "$API_HOST" \
     --port "$API_PORT" \
     --model_path "$MODEL_PATH" \
