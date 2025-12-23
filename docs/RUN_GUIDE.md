@@ -106,7 +106,7 @@ python src/train/pcb_train.py --data_dir ./data/pcb_defects --output_dir ./check
 python src/train/merge_model.py --base_model Qwen/Qwen3-VL-32B-Instruct --lora_checkpoint ./checkpoints/pcb_checkpoints/final --output_dir ./models/qwen3-vl-pcb
 
 # 3. 量化模型（可选，但推荐）
-python src/train/quantize_model.py --model_path ./models/qwen3-vl-pcb --output_dir ./models/qwen3-vl-pcb-awq
+python src/train/quantize_model_bnb.py --model_path ./models/qwen3-vl-pcb --output_dir ./models/qwen3-vl-pcb-bnb --use_4bit
 
 # 4. 使用智能检测：python src/inference/pcb_agent.py --image_path your_image.jpg --model_path ./models/qwen3-vl-pcb-awq
 ```

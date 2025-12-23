@@ -6,7 +6,7 @@ LangGraph工作流模块
 3. 生成维修报告
 4. 质量评估
 """
-from typing import TypedDict, List, Dict, Any, Annotated
+from typing import TypedDict, List, Dict, Any, Annotated, TYPE_CHECKING
 import json
 from datetime import datetime
 
@@ -22,6 +22,9 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.inference.pcb_agent import SimplePCBAgent, PCBDefectInput
+
+if TYPE_CHECKING:
+    # 仅在类型检查时导入，运行时避免循环依赖
 from src.inference.vector_store import PCBVectorStore
 
 
@@ -41,8 +44,8 @@ class PCBLangGraphAgent:
     
     def __init__(
         self,
-        model_path: str = "./models/qwen3-vl-pcb-awq",
-        vector_store: PCBVectorStore = None,
+        model_path: str = "./models/qwen3-vl-pcb-bnb",
+        vector_store: "PCBVectorStore" = None,
         collection_name: str = "pcb_defects"
     ):
         """
@@ -57,6 +60,7 @@ class PCBLangGraphAgent:
         self.vector_store = vector_store
         
         if self.vector_store is None:
+            # 延迟导入，避免与 vector_store.py 的循环依赖
             from src.inference.vector_store import create_vector_store
             self.vector_store = create_vector_store(collection_name=collection_name)
         

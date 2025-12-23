@@ -31,9 +31,18 @@ def check_environment():
         import torch
         print(f"✅ PyTorch已安装: {torch.__version__}")
         if torch.cuda.is_available():
-            print(f"   GPU可用: {torch.cuda.get_device_name(0)}")
+            gpu_name = torch.cuda.get_device_name(0)
+            gpu_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+            print(f"   ✅ GPU可用: {gpu_name}")
+            print(f"   ✅ 显存大小: {gpu_memory:.1f} GB")
         else:
             print("   ⚠️  GPU不可用（训练需要GPU）")
+            print("   可能原因:")
+            print("     1. PyTorch未安装GPU版本（当前可能是CPU版本）")
+            print("     2. CUDA驱动未正确安装")
+            print("     3. 运行环境不支持GPU")
+            print("   检查命令: nvidia-smi")
+            print("   如果nvidia-smi可用但PyTorch检测不到，可能需要重新安装GPU版本的PyTorch")
         checks.append(True)
     except ImportError:
         print("❌ PyTorch未安装，请运行: pip install torch")
@@ -81,19 +90,38 @@ def check_dataset():
     print("📊 检查数据集配置...")
     print("=" * 60)
     
-    data_dir = Path("data/pcb_defects")
+    # 检查多个可能的数据集位置（优先级从高到低）
+    possible_data_dirs = [
+        Path("tools/data/pcb_defects"),  # 转换后的数据集位置（优先）
+        Path("data/pcb_defects"),         # 标准位置
+    ]
+    
+    data_dir = None
+    for possible_dir in possible_data_dirs:
+        if possible_dir.exists():
+            data_dir = possible_dir
+            print(f"✅ 找到数据集目录: {data_dir}")
+            break
+    
+    if data_dir is None:
+        print(f"❌ 数据集目录不存在")
+        print("   检查的位置:")
+        for possible_dir in possible_data_dirs:
+            exists = "存在" if possible_dir.exists() else "不存在"
+            print(f"     - {possible_dir} ({exists})")
+        print("\n   如果你有DeepPCB数据集，请先转换:")
+        print("   python tools/convert_deeppcb_dataset.py --deeppcb_dir /path/to/DeepPCB-master")
+        print("\n   或者手动创建数据集目录:")
+        print("   mkdir -p tools/data/pcb_defects/images")
+        return False
+    
     images_dir = data_dir / "images"
     labels_file = data_dir / "labels.json"
     
-    # 检查目录结构
-    if not data_dir.exists():
-        print(f"❌ 数据集目录不存在: {data_dir}")
-        print("   请创建目录: mkdir -p data/pcb_defects/images")
-        return False
-    
+    # 检查图像目录
     if not images_dir.exists():
         print(f"❌ 图像目录不存在: {images_dir}")
-        print("   请创建目录: mkdir -p data/pcb_defects/images")
+        print(f"   请创建目录: mkdir -p {images_dir}")
         return False
     
     # 检查图像文件
@@ -131,7 +159,7 @@ def check_dataset():
 
 def create_sample_labels(labels_file, images_dir, num_samples):
     """创建示例标签文件"""
-    from data_loader import create_sample_labels_json
+    from src.data.data_loader import create_sample_labels_json
     
     create_sample_labels_json(
         str(labels_file),
@@ -163,7 +191,8 @@ def check_model():
     if not found_models:
         print("\n⚠️  未找到训练好的模型")
         print("   你需要先训练模型:")
-        print("   python pcb_train.py --data_dir ./data/pcb_defects")
+        print("   python src/train/pcb_train.py --data_dir tools/data/pcb_defects")
+        print("   或: python src/train/pcb_train.py --data_dir data/pcb_defects")
         print("\n   或者使用基础模型（效果较差）")
     else:
         print(f"\n✅ 找到 {len(found_models)} 个模型/检查点")
@@ -180,10 +209,14 @@ def show_next_steps():
     
     print("\n1️⃣  如果你有DeepPCB数据集需要转换:")
     print("   python tools/convert_deeppcb_dataset.py --deeppcb_dir /path/to/DeepPCB-master")
-    print("   详细说明: 查看 ../docs/DEEPPCB_CONVERSION_GUIDE.md")
+    print("   转换后的数据集将保存在: tools/data/pcb_defects/")
+    print("   详细说明: 查看 docs/DEEPPCB_CONVERSION_GUIDE.md")
     
     print("\n2️⃣  如果你有数据集但还没训练模型:")
-    print("   python pcb_train.py --data_dir ./data/pcb_defects")
+    print("   # 如果数据集在 tools/data/pcb_defects")
+    print("   python src/train/pcb_train.py --data_dir tools/data/pcb_defects")
+    print("   # 如果数据集在 data/pcb_defects")
+    print("   python src/train/pcb_train.py --data_dir data/pcb_defects")
     
     print("\n3️⃣  如果你已有训练好的模型:")
     print("   python src/inference/pcb_agent.py --image_path your_image.jpg --model_path ./models/qwen3-vl-pcb-awq")
@@ -192,14 +225,17 @@ def show_next_steps():
     print("   python src/inference/mllm_api.py --port 8000")
     
     print("\n5️⃣  如果你想测试数据加载:")
+    print("   # 如果数据集在 tools/data/pcb_defects")
+    print("   python -c \"from src.data.data_loader import load_pcb_dataset; d=load_pcb_dataset('tools/data/pcb_defects'); print(f'数据集大小: {len(d)}')\"")
+    print("   # 如果数据集在 data/pcb_defects")
     print("   python -c \"from src.data.data_loader import load_pcb_dataset; d=load_pcb_dataset('data/pcb_defects'); print(f'数据集大小: {len(d)}')\"")
     
     print("\n6️⃣  查看详细文档:")
-    print("   - ../README.md - 项目总览")
-    print("   - ../docs/QUICKSTART.md - 快速开始")
-    print("   - ../docs/RUN_GUIDE.md - 运行指南")
-    print("   - ../docs/DEEPPCB_CONVERSION_GUIDE.md - DeepPCB数据集转换指南")
-    print("   - ../docs/VECTOR_STORE_GUIDE.md - 向量数据库指南")
+    print("   - README.md - 项目总览")
+    print("   - docs/QUICKSTART.md - 快速开始")
+    print("   - docs/RUN_GUIDE.md - 运行指南")
+    print("   - docs/DEEPPCB_CONVERSION_GUIDE.md - DeepPCB数据集转换指南")
+    print("   - docs/VECTOR_STORE_GUIDE.md - 向量数据库指南")
     
     print("\n" + "=" * 60)
 

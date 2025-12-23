@@ -5,7 +5,7 @@
 ## 🎯 项目特性
 
 - ✅ **高精度检测**：漏检率 < 1%（工业红线）
-- ✅ **快速推理**：AWQ量化后 < 1秒/张
+- ✅ **快速推理**：BitsAndBytes 4-bit 运行时量化 < 1秒/张
 - ✅ **结构化输出**：强制JSON格式，100%解析成功率
 - ✅ **低显存占用**：推理时 < 25GB（A100-80GB优化）
 - ✅ **完整流程**：从数据准备到部署的8天完整方案
@@ -14,13 +14,15 @@
 
 ## 📋 系统要求
 
-- **GPU**: A100 80GB（推荐）或类似规格（**A800 80GB完全兼容**✅）
-- **存储**: 200GB可用空间
+- **GPU**: A100 80GB（推荐）或类似规格（**A800 80GB、RTX PRO 6000 96GB完全兼容**✅）
+- **存储**: 200GB可用空间（训练阶段），27GB（生产部署）
 - **内存**: 建议32GB+（100GB更佳）
 - **Python**: 3.8+
 - **CUDA**: 11.8+
 
-> 💡 **Autodl A800用户**: 项目完全兼容A800 80GB，无需修改代码。查看 [AUTODL_A800_COMPATIBILITY.md](docs/AUTODL_A800_COMPATIBILITY.md) 了解详情。
+> 💡 **兼容性说明**: 
+> - **Autodl A800用户**: 项目完全兼容A800 80GB，无需修改代码。查看 [AUTODL_A800_COMPATIBILITY.md](docs/AUTODL_A800_COMPATIBILITY.md)
+> - **RTX PRO 6000用户**: 项目完全兼容RTX PRO 6000 96GB，显存更大更稳定。查看 [RTX_PRO_6000_COMPATIBILITY.md](docs/RTX_PRO_6000_COMPATIBILITY.md)
 
 ## 🚀 快速开始
 
@@ -103,44 +105,109 @@ python -c "from src.data.data_loader import load_pcb_dataset; help(load_pcb_data
 
 ### 3. 训练模型（Day 1-2）
 
+**训练监控（可选）**：若要在训练时监控损失是否出现崩坏，可在另一个终端运行：
+
+```bash
+python tools/monitor_training.py --output_dir ./checkpoints/pcb_checkpoints --interval 5
+```
+
+**方式A：本地已有完整模型（推荐）**
+
+如果模型已下载到本地（如 `./modelscope_cache/qwen/Qwen3-VL-32B-Instruct`），直接传入本地路径，**不需要** `--use_modelscope`：
+
+```bash
+# 单行命令（推荐，避免换行问题）
+python src/train/pcb_train.py --data_dir ./data/pcb_defects --output_dir ./checkpoints/pcb_checkpoints --model_name ./modelscope_cache/qwen/Qwen3-VL-32B-Instruct --max_steps 1000 --batch_size 1 --gradient_accumulation_steps 16 --learning_rate 1e-4 --save_steps 50 --no_4bit
+```
+
+或者使用多行格式（确保每行末尾有反斜杠 `\`，最后一行不要有）：
+
+```bash
+# 训练（不使用4-bit量化，训练完成后会自动合并LoRA权重）
+python src/train/pcb_train.py \
+    --data_dir ./data/pcb_defects \
+    --output_dir ./checkpoints/pcb_checkpoints \
+    --model_name ./modelscope_cache/qwen/Qwen3-VL-32B-Instruct \
+    --max_steps 1000 \
+    --batch_size 1 \
+    --gradient_accumulation_steps 16 \
+    --learning_rate 1e-4 \
+    --save_steps 50 \
+    --no_4bit
+```
+
+> **说明**：
+> - 训练脚本会在训练完成后**自动合并LoRA权重**，保存到 `./checkpoints/pcb_checkpoints/final`
+> - 训练时**必须使用 `--no_4bit`**，因为4-bit量化与LoRA训练不兼容
+> - 训练完成后，可以对合并后的模型进行量化用于推理优化
+
+**方式B：从 ModelScope 下载或检查模型**
+
+如果需要从 ModelScope 下载模型，或让 ModelScope 检查/补全本地缓存，使用 `--use_modelscope`：
+
+```bash
+# 单行命令（推荐，避免换行问题）
+python src/train/pcb_train.py --data_dir ./data/pcb_defects --output_dir ./checkpoints/pcb_checkpoints --model_name ./modelscope_cache/qwen/Qwen3-VL-32B-Instruct --max_steps 1000 --batch_size 1 --gradient_accumulation_steps 16 --learning_rate 1e-4 --save_steps 50 --no_4bit --use_modelscope
+```
+
+或者使用多行格式：
+
 ```bash
 python src/train/pcb_train.py \
     --data_dir ./data/pcb_defects \
     --output_dir ./checkpoints/pcb_checkpoints \
-    --max_steps 2000 \
+    --model_name ./modelscope_cache/qwen/Qwen3-VL-32B-Instruct \
+    --max_steps 1000 \
     --batch_size 1 \
     --gradient_accumulation_steps 16 \
-    --learning_rate 5e-4
+    --learning_rate 1e-4 \
+    --save_steps 50 \
+    --no_4bit \
+    --use_modelscope
 ```
 
-### 4. 合并模型（Day 3）
+> **说明**：如果本地已有完整模型，`snapshot_download` 会直接返回本地路径，不会重复下载。但如果本地模型文件不完整（如缺少 `processor_config.json`），建议重新下载或使用 `--use_modelscope` 让 ModelScope 自动补全。
+
+### 4. 量化模型（Day 4，可选但推荐）
+
+**唯一支持：BitsAndBytes 4-bit 运行时量化（兼容Qwen3-VL）**
+
+训练完成后，可以对合并后的模型进行量化，用于推理优化（显存占用更小，速度更快）：
 
 ```bash
-python src/train/merge_model.py \
-    --base_model Qwen/Qwen3-VL-32B-Instruct \
-    --lora_checkpoint ./checkpoints/pcb_checkpoints/final \
-    --output_dir ./models/qwen3-vl-pcb
+python src/train/quantize_model_bnb.py \
+    --model_path ./checkpoints/pcb_checkpoints/final \
+    --output_dir ./models/qwen3-vl-pcb-bnb \
+    --use_4bit
 ```
 
-### 5. 量化模型（Day 4）
+> **说明**：
+> - BitsAndBytes是运行时量化，保存的权重仍为基础权重；加载时必须再次传入相同的 `BitsAndBytesConfig`（脚本会在输出目录生成 `load_quantized_model.py` 示例）
+> - 量化是可选的，如果不量化，可以直接使用 `./checkpoints/pcb_checkpoints/final` 进行推理，但显存占用会更大
+> - AWQ 脚本已移除（Qwen3-VL 暂不支持标准 AWQ 流程）
+
+> 说明：BitsAndBytes是运行时量化，保存的权重仍为基础权重；加载时必须再次传入相同的 `BitsAndBytesConfig`（脚本会在输出目录生成 `load_quantized_model.py` 示例）。  
+> AWQ 脚本已移除（Qwen3-VL 暂不支持标准 AWQ 流程）。
+
+### 5. 验证模型（Day 7）
+
+验证训练后的模型效果：
 
 ```bash
-python src/train/quantize_model.py \
-    --model_path ./models/qwen3-vl-pcb \
-    --output_dir ./models/qwen3-vl-pcb-awq \
-    --num_calib_samples 200
-```
-
-### 6. 验证模型（Day 7）
-
-```bash
+# 验证合并后的模型（未量化）
 python src/inference/validation_pcb.py \
-    --model_path ./models/qwen3-vl-pcb-awq \
-    --test_data_dir ./data/pcb_test \
-    --test_images ./data/test_images/*.jpg
+  --model_path ./checkpoints/pcb_checkpoints/final \
+  --test_data_dir ./tools/data/pcb_defects \
+  --max_test_samples 10
+
+# 或验证量化后的模型
+python src/inference/validation_pcb.py \
+    --model_path ./models/qwen3-vl-pcb-bnb \
+  --test_data_dir ./tools/data/pcb_defects \
+  --max_test_samples 10
 ```
 
-### 7. 部署服务（Day 8）
+### 6. 部署服务（Day 8）
 
 #### 方式A：使用部署脚本
 
@@ -155,7 +222,7 @@ chmod +x deploy_pcb.sh
 python src/inference/mllm_api.py \
     --host 0.0.0.0 \
     --port 8000 \
-    --model_path ./models/qwen3-vl-pcb-awq
+    --model_path ./models/qwen3-vl-pcb-bnb
 ```
 
 API文档：http://localhost:8000/docs
@@ -166,7 +233,7 @@ API文档：http://localhost:8000/docs
 python src/inference/pcb_agent.py \
     --image_path ./data/test_image.jpg \
     --inspection_type full \
-    --model_path ./models/qwen3-vl-pcb-awq
+    --model_path ./models/qwen3-vl-pcb-bnb
 ```
 
 ## 📁 项目结构
@@ -182,9 +249,9 @@ python src/inference/pcb_agent.py \
 │   │   ├── data_loader.py      # Day 0: 数据集加载和增强
 │   │   └── dataset.py          # 数据集接口（向后兼容）
 │   ├── train/                  # 训练相关模块
-│   │   ├── pcb_train.py        # Day 1-2: 模型微调
-│   │   ├── merge_model.py      # Day 3: 模型合并
-│   │   └── quantize_model.py   # Day 4: AWQ量化
+│   │   ├── pcb_train.py        # Day 1-2: 模型微调（自动合并LoRA）
+│   │   ├── merge_model.py      # 手动合并工具（训练脚本已自动完成，此工具用于特殊场景）
+│   │   └── quantize_model_bnb.py   # Day 4: BitsAndBytes量化
 │   └── inference/              # 推理和部署模块
 │       ├── pcb_agent.py        # Day 5-6: LangChain智能体
 │       ├── vector_store.py     # 向量数据库模块（历史案例存储）
@@ -217,7 +284,7 @@ python src/inference/pcb_agent.py \
 | 推理速度 | < 1秒/张 | - |
 | JSON格式正确率 | 100% | - |
 | 显存占用 | < 25GB | - |
-| 模型大小 | ~25GB (4-bit AWQ) | - |
+| 模型大小 | ~25GB (4-bit BnB 运行时) | - |
 
 ## ⚙️ 配置说明
 
@@ -234,9 +301,9 @@ python src/inference/pcb_agent.py \
 | 天数 | 任务 | 输出 |
 |------|------|------|
 | Day 0 | 数据集准备 | 预处理后的数据集 |
-| Day 1-2 | 模型微调 | LoRA检查点 |
-| Day 3 | 模型合并 | 合并后的模型 |
-| Day 4 | AWQ量化 | 量化模型（25GB） |
+| Day 1-2 | 模型微调 | LoRA检查点 + 自动合并的完整模型（保存在 `./checkpoints/pcb_checkpoints/final`） |
+| Day 3 | - | -（合并已自动完成，无需单独步骤） |
+| Day 4 | BitsAndBytes量化（可选） | 量化模型（运行时4bit，加载需传入配置） |
 | Day 5-6 | 智能体开发 | src/inference/pcb_agent.py |
 | Day 7 | 工业验证 | 验证报告 |
 | Day 8 | 部署交付 | API服务 |
@@ -267,9 +334,50 @@ python src/inference/pcb_agent.py \
 ### 问题4：推理速度慢
 
 **解决方案**：
-- 确保使用AWQ量化模型
-- 检查是否使用了4-bit量化
+- 使用 BitsAndBytes 4-bit 量化模型（加载时传入相同的 `quantization_config`）
 - 减少 `max_new_tokens`
+- 使用 `do_sample=False`（贪心解码）
+
+## 💾 存储空间管理
+
+### 自动清理工具
+
+项目提供了自动化清理脚本，**无需手动删除**：
+
+```bash
+# 1. 先模拟运行，查看将删除什么（推荐）
+python tools/cleanup_storage.py --all --dry-run
+
+# 2. 训练完成后，清理所有不需要的文件
+python tools/cleanup_storage.py --all
+
+# 3. 只清理特定项目
+python tools/cleanup_storage.py --base-model      # 删除基础模型（~60GB）
+python tools/cleanup_storage.py --merged-model   # 删除合并模型（~60GB）
+python tools/cleanup_storage.py --checkpoints 2   # 只保留最新2个检查点
+python tools/cleanup_storage.py --original-dataset # 删除原始数据集
+python tools/cleanup_storage.py --cache           # 清理缓存文件
+```
+
+### 存储空间需求
+
+| 阶段 | 所需空间 | 说明 |
+|------|---------|------|
+| **训练阶段** | ~63 GB | 代码 + 数据集 + 基础模型 + LoRA + 检查点 |
+| **生产部署** | ~27 GB | 代码 + 数据集 + 量化模型（删除基础模型） |
+
+**优化建议**：
+- ✅ 训练完成后删除基础模型，节省 ~60GB
+- ✅ 只保留量化模型用于推理，删除合并模型
+- ✅ 定期清理旧检查点，只保留最新的1-2个
+- ✅ 转换完成后可删除原始DeepPCB数据集
+
+### 问题4：推理速度慢
+
+**解决方案**：
+- 使用 BitsAndBytes 4-bit 量化模型（加载时传入相同的 `quantization_config`）
+- 减少 `max_new_tokens`
+- 使用 `do_sample=False`（贪心解码）
 
 ## 📝 数据格式说明
 

@@ -43,3 +43,6 @@ requests>=2.31.0
 # Qwen3-VL模型相关
 qwen-vl-utils>=0.0.1
 
+# ModelScope (用于国内网络环境)
+modelscope>=1.9.0
+

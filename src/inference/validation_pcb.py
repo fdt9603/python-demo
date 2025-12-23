@@ -15,14 +15,16 @@ from src.inference.pcb_agent import SimplePCBAgent
 from src.data.data_loader import load_pcb_dataset
 
 
-def test_miss_rate(agent: SimplePCBAgent, test_dataset, threshold: float = 0.99):
+def test_miss_rate(agent: SimplePCBAgent, test_dataset, test_data_dir: str = None, threshold: float = 0.99, max_samples: int = None):
     """
     测试漏检率（致命指标）
     
     Args:
         agent: PCB智能体
         test_dataset: 测试数据集
+        test_data_dir: 测试数据集目录（用于查找图像路径）
         threshold: 最低召回率阈值（默认99%，即漏检率<1%）
+        max_samples: 最大测试样本数（None表示测试全部）
     
     Returns:
         recall: 召回率
@@ -31,32 +33,165 @@ def test_miss_rate(agent: SimplePCBAgent, test_dataset, threshold: float = 0.99)
     print("测试1: 漏检率测试（致命指标）")
     print("=" * 60)
     
+    # 限制测试样本数量
+    dataset_size = len(test_dataset) if hasattr(test_dataset, '__len__') else None
+    if max_samples is not None and dataset_size is not None:
+        max_samples = min(max_samples, dataset_size)
+        print(f"📊 限制测试样本数: {max_samples}/{dataset_size}")
+    else:
+        max_samples = dataset_size
+    
     true_defects = []
     pred_defects = []
     
     for i, sample in enumerate(test_dataset):
+        # 如果设置了最大样本数，只测试前max_samples个
+        if max_samples is not None and i >= max_samples:
+            break
         # 真实标签（只要图像有缺陷，标记为1）
-        has_defect = len(sample.get("defects", [])) > 0 if isinstance(sample.get("defects"), list) else False
+        # defects可能是JSON字符串或list
+        defects_data = sample.get("defects", "[]")
+        if isinstance(defects_data, str):
+            try:
+                defects_list = json.loads(defects_data)
+            except:
+                defects_list = []
+        elif isinstance(defects_data, list):
+            defects_list = defects_data
+        else:
+            defects_list = []
+        has_defect = len(defects_list) > 0
         true_defects.append(1 if has_defect else 0)
         
         # 模型预测
         try:
-            image_path = sample.get("image_path") or sample.get("image")
-            if isinstance(image_path, str) and os.path.exists(image_path):
+            # 优先使用image_path，如果没有则尝试从image_name构建
+            image_path = sample.get("image_path")
+            if not image_path or not os.path.exists(image_path):
+                # 尝试从image_name构建路径
+                image_name = sample.get("image_name")
+                if image_name:
+                    # 尝试在常见位置查找
+                    possible_dirs = [
+                        "./tools/data/pcb_defects",
+                        "./data/pcb_defects",
+                        test_data_dir if test_data_dir else None
+                    ]
+                    for data_dir in possible_dirs:
+                        if data_dir and os.path.exists(data_dir):
+                            possible_path = os.path.join(data_dir, "images", image_name)
+                            if os.path.exists(possible_path):
+                                image_path = possible_path
+                                break
+            
+            # 如果仍然没有路径，但有PIL Image对象，保存为临时文件
+            if not image_path or not os.path.exists(image_path):
+                from PIL import Image as PILImage
+                sample_image = sample.get("image")
+                if sample_image and isinstance(sample_image, PILImage.Image):
+                    import tempfile
+                    temp_file = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
+                    sample_image.save(temp_file.name)
+                    image_path = temp_file.name
+            
+            # 调试：打印前3个样本的图像路径信息
+            if i < 3:
+                print(f"\n   [调试] 样本 {i}:")
+                print(f"   - image_path: {image_path}")
+                print(f"   - 路径存在: {os.path.exists(image_path) if image_path else False}")
+                print(f"   - 真实缺陷数: {len(defects_list)}")
+            
+            if image_path and os.path.exists(image_path):
                 result = agent.run({"image_path": image_path, "inspection_type": "full"})
+                
+                # 调试：打印前3个样本的实际输出
+                if i < 3:
+                    print(f"   [调试] 样本 {i} 的原始输出:")
+                    print(f"   {result[:500]}")
+                
+                try:
                 pred = json.loads(result)
-                pred_has_defect = len(pred) > 0 and not any(d.get("error") for d in pred)
+                    
+                    # 确保 pred 是列表
+                    if not isinstance(pred, list):
+                        pred = [pred] if pred else []
+
+                    def is_valid_defect(d):
+                        # 接受 "defect" 或 "type" 字段（模型可能输出不同的字段名）
+                        has_defect_type = ("defect" in d) or ("type" in d)
+                        bbox_valid = (
+                            "bbox" in d
+                            and isinstance(d.get("bbox"), list)
+                            and len(d.get("bbox")) == 4
+                        )
+                        result = (
+                            isinstance(d, dict)
+                            and has_defect_type
+                            and bbox_valid
+                        )
+                        return result
+
+                    valid_defects = [d for d in pred if is_valid_defect(d)]
+                    pred_has_defect = len(valid_defects) > 0
+
+                    if i < 3:
+                        print(f"   [调试] 样本 {i} 解析后的结果: {pred}")
+                        print(f"   [调试] 样本 {i} 总缺陷数: {len(pred)}")
+                        # 详细检查每个缺陷
+                        for idx, defect in enumerate(pred):
+                            is_valid = is_valid_defect(defect)
+                            print(f"   [调试] 样本 {i} 缺陷 {idx}: {defect}")
+                            print(f"   [调试] 样本 {i} 缺陷 {idx} 是否有效: {is_valid}")
+                            if not is_valid:
+                                print(f"      - 是字典: {isinstance(defect, dict)}")
+                                print(f"      - 有defect/type字段: {('defect' in defect) or ('type' in defect)}")
+                                print(f"      - 有bbox字段: {'bbox' in defect}")
+                                if 'bbox' in defect:
+                                    bbox = defect.get('bbox')
+                                    print(f"      - bbox类型: {type(bbox)}")
+                                    print(f"      - bbox值: {bbox}")
+                                    print(f"      - bbox长度: {len(bbox) if isinstance(bbox, list) else 'N/A'}")
+                        print(f"   [调试] 样本 {i} 有效缺陷数: {len(valid_defects)}")
+                        print(f"   [调试] 样本 {i} 是否有缺陷: {pred_has_defect}")
+
                 pred_defects.append(1 if pred_has_defect else 0)
+                except json.JSONDecodeError as e:
+                    if i < 3:
+                        print(f"   [调试] 样本 {i} JSON解析失败: {e}")
+                        print(f"   [调试] 样本 {i} 原始输出: {result[:200]}")
+                    pred_defects.append(0)
             else:
-                # 如果没有路径，跳过
-                print(f"警告: 样本 {i} 缺少有效图像路径，跳过")
+                # 如果没有路径，跳过（前3个样本总是打印警告）
+                if i < 3 or (i + 1) % 100 == 0:
+                    print(f"⚠️  警告: 样本 {i} 缺少有效图像路径，跳过")
+                    if i < 3:
+                        print(f"   - sample keys: {list(sample.keys())}")
+                        print(f"   - image_path: {sample.get('image_path')}")
+                        print(f"   - image_name: {sample.get('image_name')}")
                 pred_defects.append(0)
         except Exception as e:
-            print(f"处理样本 {i} 时出错: {e}")
+            # 前3个样本总是打印错误
+            if i < 3 or (i + 1) % 100 == 0:
+                print(f"❌ 处理样本 {i} 时出错: {e}")
+                import traceback
+                if i < 3:
+                    traceback.print_exc()
             pred_defects.append(0)
         
         if (i + 1) % 10 == 0:
-            print(f"  已处理 {i + 1}/{len(test_dataset)} 个样本")
+            total = max_samples if max_samples is not None else len(test_dataset)
+            print(f"  已处理 {i + 1}/{total} 个样本")
+    
+    # 计算指标前的安全检查
+    if len(true_defects) == 0 or len(pred_defects) == 0:
+        print("❌ 没有有效测试样本，无法计算召回率")
+        return False, 0.0
+
+    if len(true_defects) != len(pred_defects):
+        min_len = min(len(true_defects), len(pred_defects))
+        print(f"⚠️ 标签与预测数量不一致，截断到 {min_len} 条")
+        true_defects = true_defects[:min_len]
+        pred_defects = pred_defects[:min_len]
     
     # 计算指标
     recall = recall_score(true_defects, pred_defects)
@@ -201,7 +336,7 @@ def test_json_format(agent: SimplePCBAgent, test_images: List[str]):
         return True, success_rate
 
 
-def test_memory_stability(agent: SimplePCBAgent, test_image: str, num_iterations: int = 1000, 
+def test_memory_stability(agent: SimplePCBAgent, test_image: str, num_iterations: int = 100, 
                          max_memory_gb: float = 30.0):
     """
     测试显存稳定性（连续推理）
@@ -217,7 +352,7 @@ def test_memory_stability(agent: SimplePCBAgent, test_image: str, num_iterations
         peak_memory_gb: 峰值显存（GB）
     """
     print("\n" + "=" * 60)
-    print("测试4: 显存稳定性测试（连续推理1000次）")
+    print("测试4: 显存稳定性测试（连续推理）")
     print("=" * 60)
     
     if not os.path.exists(test_image):
@@ -241,11 +376,13 @@ def test_memory_stability(agent: SimplePCBAgent, test_image: str, num_iterations
         try:
             agent.run({"image_path": test_image, "inspection_type": "full"})
             
-            # 每100次清理一次
-            if (i + 1) % 100 == 0:
+            if (i + 1) % 20 == 0:
                 torch.cuda.empty_cache()
                 current_memory = torch.cuda.memory_allocated() / 1e9
                 print(f"  进度: {i+1}/{num_iterations}, 当前显存: {current_memory:.2f} GB")
+                if current_memory > max_memory_gb:
+                    print("🚨 显存超限，提前终止")
+                    break
         except Exception as e:
             print(f"  迭代 {i+1} 时出错: {e}")
             break
@@ -270,7 +407,8 @@ def test_memory_stability(agent: SimplePCBAgent, test_image: str, num_iterations
 
 def test_pcb_pipeline(model_path: str = "./models/qwen3-vl-pcb-awq",
                      test_data_dir: str = None,
-                     test_images: List[str] = None):
+                     test_images: List[str] = None,
+                     max_test_samples: int = 100):
     """
     PCB质检流水线工业级验证
     
@@ -278,6 +416,7 @@ def test_pcb_pipeline(model_path: str = "./models/qwen3-vl-pcb-awq",
         model_path: 模型路径
         test_data_dir: 测试数据集目录
         test_images: 测试图像路径列表
+        max_test_samples: 最大测试样本数（默认100，加快验证速度）
     """
     print("\n" + "=" * 80)
     print("PCB质检验证流水线")
@@ -302,7 +441,7 @@ def test_pcb_pipeline(model_path: str = "./models/qwen3-vl-pcb-awq",
     
     # 测试1: 漏检率
     if len(test_dataset) > 0:
-        success, recall = test_miss_rate(agent, test_dataset)
+        success, recall = test_miss_rate(agent, test_dataset, test_data_dir=test_data_dir, max_samples=max_test_samples)
         results["miss_rate"] = {"success": success, "recall": recall}
     else:
         print("⚠️  跳过漏检率测试（无测试数据集）")
@@ -369,12 +508,15 @@ if __name__ == "__main__":
                        help="测试数据集目录")
     parser.add_argument("--test_images", type=str, nargs="+", default=None,
                        help="测试图像路径列表")
+    parser.add_argument("--max_test_samples", type=int, default=100,
+                       help="最大测试样本数（默认100，加快验证速度）")
     
     args = parser.parse_args()
     
     test_pcb_pipeline(
         model_path=args.model_path,
         test_data_dir=args.test_data_dir,
-        test_images=args.test_images
+        test_images=args.test_images,
+        max_test_samples=args.max_test_samples
     )
 

@@ -8,7 +8,7 @@ echo "PCB缺陷检测系统部署"
 echo "=========================================="
 
 # 配置
-MODEL_PATH="${MODEL_PATH:-./models/qwen3-vl-pcb-awq}"
+MODEL_PATH="${MODEL_PATH:-./models/qwen3-vl-pcb-bnb}"
 API_HOST="${API_HOST:-0.0.0.0}"
 API_PORT="${API_PORT:-8000}"
 INPUT_DIR="${INPUT_DIR:-./data/pcb_input}"

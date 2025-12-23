@@ -30,8 +30,14 @@ def get_agent() -> SimplePCBAgent:
     """获取智能体实例（单例模式）"""
     global _agent
     if _agent is None:
-        model_path = os.getenv("MODEL_PATH", "./models/qwen3-vl-pcb-awq")
+        model_path = os.getenv("MODEL_PATH", "./models/qwen3-vl-pcb-bnb")
         _agent = SimplePCBAgent(model_path=model_path)
+        # 拉长生成，避免 JSON 截断
+        try:
+            max_new = int(os.getenv("MAX_NEW_TOKENS", "512"))
+            _agent.llm.max_new_tokens = max_new
+        except Exception:
+            _agent.llm.max_new_tokens = 512
     return _agent
 
 
@@ -105,6 +111,7 @@ async def inspect_image(
         
         # 保存临时文件（智能体需要文件路径）
         import tempfile
+        tmp_path = None
         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_file:
             image.save(tmp_file.name, "JPEG")
             tmp_path = tmp_file.name
@@ -117,22 +124,73 @@ async def inspect_image(
                 "inspection_type": inspection_type
             })
             
-            # 解析结果
+            # 解析结果（与验证脚本保持一致的宽松策略）
             defects_data = json.loads(result)
-            
-            # 过滤错误项
-            defects = [
-                DefectItem(**item) for item in defects_data
-                if not item.get("error")
-            ]
+            defects: List[DefectItem] = []
+
+            # 优先处理已经是缺陷列表的情况
+            for item in defects_data:
+                if not isinstance(item, dict):
+                    continue
+                # 兼容字段名 type/defect
+                if "defect" not in item and "type" in item:
+                    item["defect"] = item["type"]
+
+                # 兼容 bbox 类型：确保是长度为4的整数列表
+                bbox = item.get("bbox")
+                if not isinstance(bbox, list) or len(bbox) != 4:
+                    continue
+                try:
+                    item["bbox"] = [int(float(x)) for x in bbox]
+                except Exception:
+                    continue
+
+                # 其它字段交给 Pydantic 做校验
+                try:
+                    defects.append(DefectItem(**item))
+                except Exception:
+                    continue
+
+            # 兼容老版本：如果列表里是 parse_failed 结构，再做一次原始文本解析
+            if not defects and any(isinstance(i, dict) and i.get("error") == "parse_failed" for i in defects_data):
+                import re
+                for item in defects_data:
+                    if not isinstance(item, dict) or item.get("error") != "parse_failed":
+                        continue
+                    raw = item.get("raw_response", "")
+                    if not isinstance(raw, str):
+                        continue
+                    matches = re.findall(r"\[[\s\S]*?\]", raw)
+                    for m in matches:
+                        try:
+                            parsed = json.loads(m)
+                        except Exception:
+                            continue
+                        if not isinstance(parsed, list):
+                            continue
+                        for it in parsed:
+                            if not isinstance(it, dict):
+                                continue
+                            if "defect" not in it and "type" in it:
+                                it["defect"] = it["type"]
+                            bbox = it.get("bbox")
+                            if not isinstance(bbox, list) or len(bbox) != 4:
+                                continue
+                            try:
+                                it["bbox"] = [int(float(x)) for x in bbox]
+                                defects.append(DefectItem(**it))
+                            except Exception:
+                                continue
+                        if defects:
+                            break
             
             return InspectionResponse(
                 success=True,
                 defects=defects
             )
         finally:
-            # 清理临时文件
-            if os.path.exists(tmp_path):
+            # 清理临时文件（确保变量已初始化）
+            if tmp_path and os.path.exists(tmp_path):
                 os.unlink(tmp_path)
     
     except json.JSONDecodeError as e:
