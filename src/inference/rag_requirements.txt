@@ -1,0 +1,29 @@
+# PCB RAG 推理系统额外依赖
+# 注意：此文件只包含 RAG 系统额外需要的依赖
+# 基础依赖（torch, transformers, accelerate, bitsandbytes, peft, pillow, numpy）已在 requirements.txt 中
+# 如果已安装 requirements.txt，只需安装此文件中的额外依赖即可
+
+# 依赖冲突修复
+# datasets 4.4.2 需要 dill<0.4.1,>=0.3.0
+# multiprocess 0.70.18 需要 dill>=0.4.0
+# 兼容版本范围：dill>=0.4.0,<0.4.1
+# 注意：已移除 pyfunctional 依赖（与 dill 版本冲突），改用标准 Python 代码
+dill>=0.4.0,<0.4.1
+
+# RAG 系统专用依赖
+protobuf
+cpm_kernels
+jieba==0.42.1
+lxml==4.9.4
+gradio
+mdtex2html
+sentencepiece
+sse-starlette
+streamlit>=1.24.0
+# pyfunctional 已移除（与 dill 版本冲突，已用标准 Python 代码替换）
+chardet
+faiss-cpu
+PyMuPDF
+openai
+llama-index
+dashscope

@@ -207,35 +207,6 @@ python src/inference/validation_pcb.py \
   --max_test_samples 10
 ```
 
-### 6. 部署服务（Day 8）
-
-#### 方式A：使用部署脚本
-
-```bash
-chmod +x deploy_pcb.sh
-./deploy_pcb.sh
-```
-
-#### 方式B：启动API服务
-
-```bash
-python src/inference/mllm_api.py \
-    --host 0.0.0.0 \
-    --port 8000 \
-    --model_path ./models/qwen3-vl-pcb-bnb
-```
-
-API文档：http://localhost:8000/docs
-
-#### 方式C：命令行使用
-
-```bash
-python src/inference/pcb_agent.py \
-    --image_path ./data/test_image.jpg \
-    --inspection_type full \
-    --model_path ./models/qwen3-vl-pcb-bnb
-```
-
 ## 📁 项目结构
 
 ```
@@ -258,6 +229,14 @@ python src/inference/pcb_agent.py \
 │       ├── pcb_graph.py        # LangGraph工作流模块
 │       ├── validation_pcb.py   # Day 7: 工业级验证
 │       └── mllm_api.py         # Day 8: FastAPI服务
+│       ├── rag.py              # PCB RAG推理系统（多跳推理、知识库管理）
+│       ├── config.py           # RAG系统配置文件
+│       ├── text2vec.py         # 文本向量化（使用Kimi API）
+│       ├── retrievor.py        # 联网搜索模块
+│       ├── local_llm_client.py # 本地LLM客户端（使用训练好的模型）
+│       ├── knowledge_base/     # 知识库文件夹（用于上传PCB缺陷检测指南文档）
+│       │   └── PCB缺陷检测指南示例.txt  # 示例文档
+│       └── output_files/       # 临时输出目录
 ├── examples/                    # 示例代码目录
 │   ├── example_usage.py        # 使用示例
 │   ├── main.py                 # 示例入口
@@ -408,6 +387,98 @@ python tools/cleanup_storage.py --cache           # 清理缓存文件
 - **LangGraph**: 构建多步骤智能体工作流（检测→检索→报告→评估）
 
 详细使用指南请参考 [VECTOR_STORE_GUIDE.md](docs/VECTOR_STORE_GUIDE.md)
+
+## 🔧 PCB RAG 推理系统
+
+### 概述
+
+PCB RAG 推理系统是一个基于训练好的 Qwen3-VL-32B-Instruct 模型的智能问答系统，支持：
+- **多知识库管理**：创建和管理多个PCB缺陷检测知识库
+- **文档上传**：支持上传TXT/PDF格式的PCB缺陷检测指南文档
+- **向量检索**：使用Kimi API进行文本向量化，实现语义检索
+- **多跳推理**：通过迭代式检索和推理，提供更全面的答案
+- **联网搜索**：整合网络搜索结果，获取最新技术动态
+- **本地模型推理**：使用训练好的 qwen3-vl-pcb-bnb 模型进行文本生成
+
+### 快速开始
+
+1. **安装依赖**
+```bash
+# 如果已安装 requirements.txt，只需安装 RAG 系统的额外依赖
+pip install -r src/inference/rag_requirements.txt
+
+# 如果未安装基础依赖，先安装基础依赖
+pip install -r requirements.txt
+# 然后安装 RAG 系统额外依赖
+pip install -r src/inference/rag_requirements.txt
+```
+
+2. **配置API密钥**
+编辑 `src/inference/config.py`，设置你的 Kimi API Key：
+```python
+api_key = "your-kimi-api-key"  # 替换为你的Kimi API Key
+```
+
+3. **准备知识库文档**
+将PCB缺陷检测相关的文档（TXT或PDF格式）放入 `src/inference/knowledge_base/` 目录，或通过Web界面上传。
+
+4. **启动系统**
+```bash
+python src/inference/rag.py
+```
+
+系统将在 `http://0.0.0.0:7860` 启动，你可以通过浏览器访问Web界面。
+
+### 功能特性
+
+- **知识库管理**：
+  - 创建、删除、管理多个知识库
+  - 上传TXT/PDF文档到知识库
+  - 自动进行语义分块和向量化
+  - 构建FAISS索引实现快速检索
+
+- **智能问答**：
+  - 基于知识库的语义检索
+  - 多跳推理机制（最多3跳）
+  - 联网搜索整合
+  - 多轮对话支持
+
+- **系统提示词**：
+  - 默认system_prompt: "你是一名PCB缺陷检测工程师，请根据背景知识回答问题。"
+  - 可在 `config.py` 中自定义
+
+### 使用说明
+
+1. **创建知识库**：
+   - 在"知识库管理"标签页创建新知识库
+   - 上传PCB缺陷检测相关的TXT或PDF文档
+   - 系统自动处理文档并构建索引
+
+2. **提问**：
+   - 在"对话交互"标签页选择知识库
+   - 输入PCB缺陷检测相关问题
+   - 可选择启用联网搜索和多跳推理
+   - 系统将基于知识库和网络搜索提供答案
+
+3. **示例问题**：
+   - "PCB短路缺陷的检测方法和维修建议有哪些？"
+   - "PCB断路缺陷的常见原因和定位方法是什么？"
+   - "如何预防PCB制造过程中的常见缺陷？"
+
+### 技术架构
+
+- **Embedding模型**：Kimi API (moonshot-embedding-v1)
+- **LLM模型**：本地训练好的 qwen3-vl-pcb-bnb 模型
+- **向量数据库**：FAISS
+- **Web框架**：Gradio
+- **文档处理**：PyMuPDF (PDF), chardet (编码检测)
+
+### 注意事项
+
+1. **模型路径**：确保训练好的模型位于 `./models/qwen3-vl-pcb-bnb` 目录
+2. **API密钥**：需要有效的Kimi API Key用于文本向量化
+3. **显存要求**：推理时建议至少8GB显存（使用量化模型）
+4. **知识库文档**：建议上传与PCB缺陷检测相关的文档，以获得更好的检索效果
 
 ### 快速开始
 
