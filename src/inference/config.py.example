@@ -1,0 +1,76 @@
+class Config():
+    """
+    PCB缺陷检测RAG系统配置文件
+    复制此文件为 config.py 并填写您的 API Key
+    """
+    
+    # retrievor参数
+    topd = 3    # 召回文章的数量
+    topt = 6    # 召回文本片段的数量
+    maxlen = 128  # 召回文本片段的长度
+    topk = 5    # query召回的关键词数量
+    recall_way = 'embed'  # 召回方式: keyword, embed
+    
+    # generator参数
+    max_source_length = 767  # 输入的最大长度
+    max_target_length = 256  # 生成的最大长度
+    model_max_length = 1024  # 序列最大长度
+    
+    # embedding API 参数 - 支持 DashScope、DeepSeek 和 Kimi API
+    # ⚠️ 如果 API 权限未开通，可以设置 use_api = False 使用本地模型
+    use_api = True  # 是否使用API而非本地模型（False = 使用本地模型）
+    api_provider = "dashscope"  # API 提供商: "dashscope"、"deepseek" 或 "kimi"
+    
+    # DashScope API 配置（推荐，支持多模态 embedding）
+    # 使用 qwen2.5-vl-embedding 模型，支持文本、图片和视频
+    # 获取 API Key: https://dashscope.console.aliyun.com/apiKey
+    api_key = ""  # ⚠️ 请替换为您的 DashScope API Key（从环境变量 DASHSCOPE_API_KEY 读取，或直接填写）
+    base_url = ""  # DashScope 不需要 base_url（使用 dashscope SDK）
+    model_name = "qwen2.5-vl-embedding"  # DashScope embedding 模型
+    # 注意：DashScope 的 embedding 维度由模型决定，不需要手动指定
+    dimensions = 1024  # 用于兼容性（实际维度由模型决定）
+    batch_size = 10
+    
+    # 本地 Embedding 模型配置（当 use_api = False 时使用）
+    # 如果需要使用本地模型，设置 use_api = False 并配置 bert_path
+    # 推荐使用 sentence-transformers 模型，例如：
+    # bert_path = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"  # 多语言模型
+    # bert_path = "sentence-transformers/all-MiniLM-L6-v2"  # 英文模型（更快）
+    # bert_path = "shibing624/text2vec-base-chinese"  # 中文模型
+    bert_path = None  # 本地 embedding 模型路径（如果使用本地模型）
+    
+    # Kimi API 配置（备选方案）
+    # ⚠️ 如果遇到 403 错误，需要在 Moonshot AI 控制台开启 embedding 服务权限
+    # api_provider = "kimi"
+    # api_key = ""  # ⚠️ 请替换为您的 Kimi API Key
+    # base_url = "https://api.moonshot.cn/v1"  # Kimi API 基础 URL
+    # model_name = "moonshot-embedding-v1"  # Kimi embedding 模型
+    # dimensions = 1024  # Kimi embedding 向量维度
+    
+    # DeepSeek API 配置（不推荐，测试显示不支持 embedding API）
+    # ⚠️ 测试结果：DeepSeek 返回 404 错误，可能不支持 embedding API
+    # api_provider = "deepseek"
+    # api_key = ""  # DeepSeek API Key
+    # base_url = "https://api.deepseek.com/v1"  # DeepSeek API 基础 URL
+    # model_name = "deepseek-embedding"  # 此模型不存在，会导致 404
+    # dimensions = 1024
+    
+    # LLM 模型配置 - 使用训练好的本地模型
+    # 注意：这里不使用 API，而是使用本地训练好的 qwen3-VL-32B-instruct 模型
+    llm_model_path = "./models/qwen3-vl-pcb-bnb"  # 训练好的模型路径
+    llm_device = "cuda"  # 使用 GPU 或 cpu
+    llm_max_new_tokens = 512
+    llm_temperature = 0.1
+    llm_top_p = 0.95
+    llm_do_sample = False
+    
+    # 知识库配置
+    kb_base_dir = "src/inference/knowledge_bases"  # 知识库根目录
+    default_kb = "default"  # 默认知识库名称
+    
+    # 输出目录配置 - 现在用作临时文件目录
+    output_dir = "src/inference/output_files"
+    
+    # System Prompt - PCB缺陷检测专家
+    system_prompt = "你是一名PCB缺陷检测工程师，请根据背景知识回答问题。"
+
