@@ -70,6 +70,9 @@ Thumbs.db
 .env
 .env.local
 
+# Config files with sensitive information
+src/inference/config.py
+
 # Cache
 .cache/
 *.cache
